@@ -11,7 +11,7 @@ declare global {
   }
 }
 
-const baseUrl = "http://hk.xuhen.com/api";
+const baseUrl = "http://cd.xuhen.com:3047/";
 // const baseUrl = "https://api.openai.com/v1";
 const model = "gpt-3.5-turbo";
 
@@ -25,8 +25,7 @@ interface IState{
 }
 
 
-class App extends React.Component<unknown,IState> {
-  private flag = true;
+class Chat extends React.Component<unknown,IState> {
 
   constructor(props:unknown) {
     super(props);
@@ -49,7 +48,7 @@ class App extends React.Component<unknown,IState> {
     if(this.refContent.current){
       this.refContent.current.innerHTML = "";
     }
-    const messageList: ChatMessage[] = [{ role: "user", content: msg }];
+    const messageList: ChatMessage = { role: "user", content: msg };
     this.httpEventStream(messageList).then(async (response)=>{
       if (!response.ok) {
         const error:any = response.json();
@@ -65,7 +64,8 @@ class App extends React.Component<unknown,IState> {
       let done = false
 
       while (!done) {
-        const { value, done: readerDone } = await reader.read()
+        const { value, done: readerDone } = await reader.read();
+        console.log(11111,value);
         if (value) {
           const char = decoder.decode(value)
 
@@ -127,24 +127,19 @@ class App extends React.Component<unknown,IState> {
   }
 
   generatePayload = (
-    messages: ChatMessage[]
+    messages: ChatMessage
   ): RequestInit & { dispatcher?: any } => ({
-    // headers: {
-    //   "Access-Control-Request-Headers": "authorization,content-type",
-    //   "Access-Control-Request-Method": "POST",
-    //   "Origin": "http://localhost:3000",
-    //   "content-type": "application/json",
-    //   Authorization: "Bearer sk-demo-1q2w3e4r5t6y7u8i9o0p",
-    // },
+    headers: {
+      "Access-Control-Request-Headers": "",
+      "Access-Control-Request-Method": "POST",
+      "Origin": "http://localhost:3000",
+    },
     method: "POST",
     body: JSON.stringify({
-      model,
-      messages,
-      temperature: 2,
-      top_p: 0.5,
-      stream: true,
-      max_tokens: 4080,
-      user: "will.xiao",
+      prompt:messages.content,
+      temperature: 0.9,
+      top_p: 0.2,
+      history: [],
     }),
   });
 
@@ -158,10 +153,11 @@ class App extends React.Component<unknown,IState> {
       });
     }
 
+    const that = this;
     const stream = new ReadableStream({
       async start(controller) {
         const streamParser = (event: ParsedEvent | ReconnectInterval) => {
-          console.log("event",event)
+          console.log("event:", event)
           if (event.type === "event") {
             const data = event.data;
             if (data === "[DONE]") {
@@ -170,8 +166,8 @@ class App extends React.Component<unknown,IState> {
             }
             try {
               const json = JSON.parse(data);
-              const text = json.choices[0].delta?.content || "";
-              console.log("text:", text);
+              console.log("json=",json);
+              const text = json.response || "";
               const queue = encoder.encode(text);
               controller.enqueue(queue);
             } catch (e) {
@@ -190,8 +186,19 @@ class App extends React.Component<unknown,IState> {
           const result = await reader.read();
           const value = decoder.decode(result.value);
           console.log("result:", result.done, value)
+          const res = value.replaceAll("'","\"")
+            .replaceAll("True","true")
+            .replaceAll("False","false");
+          if (res){
+            const json = JSON.parse(res);
+            that.content = that.content + json.response||"";
+            that.content = that.content.replaceAll("\n\n","\n");
+            if(that.refContent.current){
+              that.refContent.current.innerHTML = that.content.replaceAll("\n","<br />");
+            }
+          }
           done = result.done;
-          parser.feed(value);
+          parser.feed(res);
         }
       },
     });
@@ -199,11 +206,11 @@ class App extends React.Component<unknown,IState> {
     return new Response(stream);
   };
 
-  httpEventStream(messages: ChatMessage[]){
+  httpEventStream(messages: ChatMessage){
     const initOptions = this.generatePayload(messages);
 
     return fetch(
-      `${baseUrl}/v1/chat/completions`,
+      `${baseUrl}`,
       initOptions
     ).then((response:Response)=>{
       return this.parseOpenAIStream(response);
@@ -222,4 +229,4 @@ class App extends React.Component<unknown,IState> {
   }
 }
 
-export default App;
+export default Chat;
