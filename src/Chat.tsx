@@ -67,17 +67,11 @@ class Chat extends React.Component<unknown,IState> {
         const { value, done: readerDone } = await reader.read();
         if (value) {
           let char = decoder.decode(value)
-          char = char.replaceAll("\\n\\n","<br />");
-          char = char.replaceAll("\\n","<br />");
-          char = char.replaceAll("<br />    ","<br />&nbsp;&nbsp;&nbsp;&nbsp;");
-          char = char.replaceAll("<br />   ","<br />&nbsp;&nbsp;&nbsp;");
-          char = char.replaceAll("<br />  ","<br />&nbsp;&nbsp;");
-          char = char.replaceAll("<br /> ","<br />&nbsp;");
           if (char){
             this.content = this.content + char;
             // this.content = this.content.replaceAll("\n\n","\n");
             if(this.refContent.current){
-              console.log("result====",this.content);
+              // console.log("result====",this.content);
               this.refContent.current.innerHTML = this.content;
             }
           }
@@ -104,6 +98,7 @@ class Chat extends React.Component<unknown,IState> {
             textAlign: "left",
             padding: "8px 12px",
             overflowY:"auto",
+            whiteSpace: "pre-wrap",
           }}
         />
         <div style={{width: 800, height: 36, display: "flex", marginTop: 12}}>
@@ -146,6 +141,7 @@ class Chat extends React.Component<unknown,IState> {
       temperature: 0.9,
       top_p: 0.2,
       history: [],
+      user: "will.xiao"
     }),
   });
 
@@ -170,13 +166,10 @@ class Chat extends React.Component<unknown,IState> {
             }
             try {
               // console.log("data=",data);
-              const index = data.indexOf("'response':");
-              const indexR = data.indexOf(", 'status':",index+11);
-              //const json = JSON.parse(data.replaceAll("'","\""));
-              //console.log("json=",json);
-              const response = data.substring(index+11+2,indexR-1);
+              const json = JSON.parse(data);
+              // console.log("json=",json);
               // console.log("response",response)
-              const text = response || "";
+              const text = json.response || "";
               const queue = encoder.encode(text);
               controller.enqueue(queue);
             } catch (e) {
@@ -208,7 +201,7 @@ class Chat extends React.Component<unknown,IState> {
     const initOptions = this.generatePayload(messages);
 
     return fetch(
-      `${baseUrl}`,
+      `${baseUrl}/v1/chat/stream`,
       initOptions
     ).then((response:Response)=>{
       return this.parseOpenAIStream(response);
