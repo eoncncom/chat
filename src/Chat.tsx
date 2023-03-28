@@ -11,7 +11,7 @@ declare global {
   }
 }
 
-const baseUrl = "http://cd.xuhen.com:3047/";
+const baseUrl = "http://www.xuhen.com/api/";
 // const baseUrl = "https://api.openai.com/v1";
 const model = "gpt-3.5-turbo";
 
@@ -65,15 +65,20 @@ class Chat extends React.Component<unknown,IState> {
 
       while (!done) {
         const { value, done: readerDone } = await reader.read();
-        console.log(11111,value);
         if (value) {
-          const char = decoder.decode(value)
-
+          let char = decoder.decode(value)
+          char = char.replaceAll("\\n\\n","<br />");
+          char = char.replaceAll("\\n","<br />");
+          char = char.replaceAll("<br />    ","<br />&nbsp;&nbsp;&nbsp;&nbsp;");
+          char = char.replaceAll("<br />   ","<br />&nbsp;&nbsp;&nbsp;");
+          char = char.replaceAll("<br />  ","<br />&nbsp;&nbsp;");
+          char = char.replaceAll("<br /> ","<br />&nbsp;");
           if (char){
             this.content = this.content + char;
-            this.content = this.content.replaceAll("\n\n","\n");
+            // this.content = this.content.replaceAll("\n\n","\n");
             if(this.refContent.current){
-              this.refContent.current.innerHTML = this.content.replaceAll("\n","<br />");
+              console.log("result====",this.content);
+              this.refContent.current.innerHTML = this.content;
             }
           }
         }
@@ -98,11 +103,12 @@ class Chat extends React.Component<unknown,IState> {
             fontSize: 14,
             textAlign: "left",
             padding: "8px 12px",
+            overflowY:"auto",
           }}
         />
         <div style={{width: 800, height: 36, display: "flex", marginTop: 12}}>
           <input
-            defaultValue="写一个小故事"
+            defaultValue="用python写一个FastApi的例子"
             maxLength={100}
             style={{flex: 1,height:"36", paddingLeft: "12px",border: "1px solid #f0f1f3",}}
             ref={this.ref}
@@ -153,11 +159,9 @@ class Chat extends React.Component<unknown,IState> {
       });
     }
 
-    const that = this;
     const stream = new ReadableStream({
       async start(controller) {
         const streamParser = (event: ParsedEvent | ReconnectInterval) => {
-          console.log("event:", event)
           if (event.type === "event") {
             const data = event.data;
             if (data === "[DONE]") {
@@ -165,9 +169,14 @@ class Chat extends React.Component<unknown,IState> {
               return;
             }
             try {
-              const json = JSON.parse(data);
-              console.log("json=",json);
-              const text = json.response || "";
+              // console.log("data=",data);
+              const index = data.indexOf("'response':");
+              const indexR = data.indexOf(", 'status':",index+11);
+              //const json = JSON.parse(data.replaceAll("'","\""));
+              //console.log("json=",json);
+              const response = data.substring(index+11+2,indexR-1);
+              // console.log("response",response)
+              const text = response || "";
               const queue = encoder.encode(text);
               controller.enqueue(queue);
             } catch (e) {
@@ -186,19 +195,8 @@ class Chat extends React.Component<unknown,IState> {
           const result = await reader.read();
           const value = decoder.decode(result.value);
           console.log("result:", result.done, value)
-          const res = value.replaceAll("'","\"")
-            .replaceAll("True","true")
-            .replaceAll("False","false");
-          if (res){
-            const json = JSON.parse(res);
-            that.content = that.content + json.response||"";
-            that.content = that.content.replaceAll("\n\n","\n");
-            if(that.refContent.current){
-              that.refContent.current.innerHTML = that.content.replaceAll("\n","<br />");
-            }
-          }
           done = result.done;
-          parser.feed(res);
+          parser.feed(value);
         }
       },
     });
