@@ -73,6 +73,7 @@ class Chat extends React.Component<unknown, IState> {
             if (this.refContent.current) {
               // console.log("result====",this.content);
               this.refContent.current.innerHTML = this.content;
+              this.refContent.current.scrollTop=this.refContent.current.scrollHeight-this.refContent.current.clientHeight;
             }
           }
         }
@@ -105,6 +106,8 @@ class Chat extends React.Component<unknown, IState> {
             textAlign: "left",
             padding: "8px 12px",
             flex: 1,
+            overflowY:"auto",
+            whiteSpace: "pre-wrap",
           }}
         />
         <div
