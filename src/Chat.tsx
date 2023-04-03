@@ -1,6 +1,10 @@
 import React from "react";
 import "./App.css";
-import { createParser, ParsedEvent, ReconnectInterval } from "eventsource-parser";
+import {
+  createParser,
+  ParsedEvent,
+  ReconnectInterval,
+} from "eventsource-parser";
 
 declare global {
   interface Window {
@@ -16,27 +20,24 @@ const baseUrl = "http://www.xuhen.com/api/";
 const model = "gpt-3.5-turbo";
 
 interface ChatMessage {
-  role: "user"|"system",
+  role: "user" | "system";
   content: string;
 }
 
-interface IState{
-  content:string;
+interface IState {
+  content: string;
 }
 
-
-class Chat extends React.Component<unknown,IState> {
-
-  constructor(props:unknown) {
+class Chat extends React.Component<unknown, IState> {
+  constructor(props: unknown) {
     super(props);
     this.state = {
       content: "",
-    }
+    };
   }
   private readonly ref = React.createRef<HTMLInputElement>();
   private readonly refContent = React.createRef<HTMLDivElement>();
-  private content:string = "";
-
+  private content: string = "";
 
   handleSend() {
     const msg = this.ref.current?.value;
@@ -45,51 +46,57 @@ class Chat extends React.Component<unknown,IState> {
       return;
     }
     this.content = "";
-    if(this.refContent.current){
+    if (this.refContent.current) {
       this.refContent.current.innerHTML = "";
     }
     const messageList: ChatMessage = { role: "user", content: msg };
-    this.httpEventStream(messageList).then(async (response)=>{
+    this.httpEventStream(messageList).then(async (response) => {
       if (!response.ok) {
-        const error:any = response.json();
-        console.error(error.error)
-        throw new Error('Request failed')
+        const error: any = response.json();
+        console.error(error.error);
+        throw new Error("Request failed");
       }
-      const data = response.body
-      if (!data)
-        throw new Error('No data')
+      const data = response.body;
+      if (!data) throw new Error("No data");
 
-      const reader = data.getReader()
-      const decoder = new TextDecoder('utf-8')
-      let done = false
+      const reader = data.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let done = false;
 
       while (!done) {
         const { value, done: readerDone } = await reader.read();
         if (value) {
-          let char = decoder.decode(value)
-          if (char){
+          let char = decoder.decode(value);
+          if (char) {
             this.content = this.content + char;
             // this.content = this.content.replaceAll("\n\n","\n");
-            if(this.refContent.current){
+            if (this.refContent.current) {
               // console.log("result====",this.content);
               this.refContent.current.innerHTML = this.content;
             }
           }
         }
-        done = readerDone
+        done = readerDone;
       }
-    })
-  };
+    });
+  }
 
   render() {
     return (
-      <div className="App" style={{padding:"12px 20px"}}>
+      <div
+        className="App"
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          alignContent: "center",
+        }}
+      >
         <div
           ref={this.refContent}
           style={{
             boxSizing: "border-box",
-            width: 800,
-            height: 400,
+            width: "100%",
             border: "1px solid #f0f1f3",
             background: "white",
             color: "#4a4a4a",
@@ -97,19 +104,33 @@ class Chat extends React.Component<unknown,IState> {
             fontSize: 14,
             textAlign: "left",
             padding: "8px 12px",
-            overflowY:"auto",
-            whiteSpace: "pre-wrap",
+            flex: 1,
           }}
         />
-        <div style={{width: 800, height: 36, display: "flex", marginTop: 12}}>
+        <div
+          style={{ width: "100%", height: 36, display: "flex", marginTop: 12 }}
+        >
           <input
             defaultValue="用python写一个FastApi的例子"
             maxLength={100}
-            style={{flex: 1,height:"36", paddingLeft: "12px",border: "1px solid #f0f1f3",}}
+            style={{
+              flex: 1,
+              height: "36",
+              paddingLeft: "12px",
+              border: "1px solid #f0f1f3",
+            }}
             ref={this.ref}
           />
           <button
-            style={{width: "96px",color:"#4a4a4a", fontSize:"16px", height: "36px", marginLeft: 20, border: "1px solid #f0f1f3",background:"white"}}
+            style={{
+              width: "96px",
+              color: "#4a4a4a",
+              fontSize: "16px",
+              height: "36px",
+              marginLeft: 20,
+              border: "1px solid #f0f1f3",
+              background: "white",
+            }}
             onClick={() => this.handleSend()}
           >
             发送
@@ -133,19 +154,19 @@ class Chat extends React.Component<unknown,IState> {
     headers: {
       "Access-Control-Request-Headers": "",
       "Access-Control-Request-Method": "POST",
-      "Origin": "http://localhost:3000",
+      Origin: "http://localhost:3000",
     },
     method: "POST",
     body: JSON.stringify({
-      prompt:messages.content,
+      prompt: messages.content,
       temperature: 0.9,
       top_p: 0.2,
       history: [],
-      user: "will.xiao"
+      user: "will.xiao",
     }),
   });
 
-  parseOpenAIStream(rawResponse: Response){
+  parseOpenAIStream(rawResponse: Response) {
     const encoder = new TextEncoder();
     const decoder = new TextDecoder();
     if (!rawResponse.ok) {
@@ -180,14 +201,14 @@ class Chat extends React.Component<unknown,IState> {
 
         const parser = createParser(streamParser);
         const reader = rawResponse.body?.getReader();
-        if (!reader){
+        if (!reader) {
           throw new Error("no reader");
         }
         let done = false;
-        while (!done){
+        while (!done) {
           const result = await reader.read();
           const value = decoder.decode(result.value);
-          console.log("result:", result.done, value)
+          console.log("result:", result.done, value);
           done = result.done;
           parser.feed(value);
         }
@@ -195,28 +216,27 @@ class Chat extends React.Component<unknown,IState> {
     });
 
     return new Response(stream);
-  };
+  }
 
-  httpEventStream(messages: ChatMessage){
+  httpEventStream(messages: ChatMessage) {
     const initOptions = this.generatePayload(messages);
 
-    return fetch(
-      `${baseUrl}/v1/chat/stream`,
-      initOptions
-    ).then((response:Response)=>{
-      return this.parseOpenAIStream(response);
-    }).catch((err: Error) => {
-      console.error(err);
-      return new Response(
-        JSON.stringify({
-          error: {
-            code: err.name,
-            message: err.message,
-          },
-        }),
-        { status: 500 }
-      );
-    });
+    return fetch(`${baseUrl}/v1/chat/stream`, initOptions)
+      .then((response: Response) => {
+        return this.parseOpenAIStream(response);
+      })
+      .catch((err: Error) => {
+        console.error(err);
+        return new Response(
+          JSON.stringify({
+            error: {
+              code: err.name,
+              message: err.message,
+            },
+          }),
+          { status: 500 }
+        );
+      });
   }
 }
 
